@@ -139,13 +139,10 @@ $app->post('/api/jobs/adduri', function(Request $request, Response $response ){
     $job_name = $request->getParam('job_name');
     $client_name = $request->getParam('client_name');
     $node_name = $request->getParam('node_name');
-    $uri = $request->getParam('uri');
-    $file_name = $request->getParam('file_name'); 
-    $file = $request->getParam('file');
    
-    echo $file;
     $target_dir = "../src/routes/uploads/";
-    $target_file = $target_dir . basename($_FILES[$file]["name"]);
+    $target_file = $target_dir . basename($_FILES["file"]["name"]);
+    $file_name = $_FILES["file"]["name"];
     $uploadOk = 1;
 
      //Check if the file already exists
@@ -155,7 +152,7 @@ $app->post('/api/jobs/adduri', function(Request $request, Response $response ){
     }
 
     //Check if file size greater than 1 MB
-    if($_FILES[$file]["size"] > 1000000){
+    if($_FILES["file"]["size"] > 1000000){
         echo "Sorry, file too large";
         echo "Please upload files smaller than 1 MB";
         $uploadOk = 0;
@@ -165,8 +162,8 @@ $app->post('/api/jobs/adduri', function(Request $request, Response $response ){
     if($uploadOk == 0){
         echo "Sorry, your file was not uploaded";
     } else {
-        if(move_uploaded_file($_FILES[$file]["tmp_name"], $target_file)){
-            echo "The file" . basename($_FILES[$file]["name"]). " has been uploaded";
+        if(move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)){
+            echo "The file" . basename($_FILES["file"]["name"]). " has been uploaded";
         } else {
             echo "Sorry, there was an error in uploading your file";
         }
@@ -185,13 +182,43 @@ $app->post('/api/jobs/adduri', function(Request $request, Response $response ){
         $stmt->bindParam(':job_name',$job_name);
         $stmt->bindParam(':client_name',$client_name);
         $stmt->bindParam(':node_name',$node_name);
-        $stmt->bindParam(':uri',$uri);
+        $stmt->bindParam(':uri',$target_file);
         $stmt->bindParam(':file_name',$file_name);
 
         $stmt->execute();
       
         echo '{"notice": {"text": "Job added"}}';
        
+    }catch(PDOException $e){
+        echo'{"error": {"text": '.$e->getMessage().'}';
+    }
+});
+
+
+//push a file to client
+$app->get('/api/jobs/recieve/{id}', function(Request $request, Response $response ){
+    $id = $request->getAttribute('id');
+    $sql = "SELECT uri,file_name FROM jobs WHERE id = $id";
+    try{
+        //GET DB object
+        $db = new db();
+        //Connect
+        $db = $db->connect();
+
+        $stmt = $db->query($sql);
+        $job = $stmt->fetch(PDO::FETCH_OBJ);
+        $db = null;
+        $uri = $job->uri;
+        $file_name = $job->file_name;
+
+        if( !file_exists($uri) ) die("File not found");
+        // Force the download
+
+        header('Content-Type: application/octet-stream');
+        header("Content-Transfer-Encoding: Binary"); 
+        header("Content-disposition: attachment; filename=$file_name"); 
+        readfile($url); 
+
     }catch(PDOException $e){
         echo'{"error": {"text": '.$e->getMessage().'}';
     }
